@@ -4,3 +4,4 @@ recursive-include scheme *.scm
 recursive-include patches *.patch
 recursive-include examples *.scm
 recursive-include tests *.py *.scm
+recursive-include ci *.py *.scm *.sh

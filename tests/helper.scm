@@ -99,6 +99,24 @@
   (error-code (lambda () (dispatch policy '("start" "klipper")
                                   #:request (lambda (_ action target)
                                               (if (eq? action 'status) services #f))))))
+(test-equal "restart success reply cannot hide failed constructor" "shepherd"
+  (error-code (lambda ()
+                (dispatch policy '("restart" "klipper")
+                          #:request (lambda (_ action target)
+                                      (if (eq? action 'status)
+                                          (list (service 'klipper #:status 'stopped #:failures '(20))
+                                                (service 'moonraker))
+                                          #t))))))
+(test-equal "Moonraker alias cannot bypass restart-only restriction" "denied"
+  (error-code (lambda ()
+                (dispatch
+                 (validate-policy
+                  '((version . 1) (socket . "/private/socket") (moonraker-service . "moonraker")
+                    (services . (("moonraker" restart) ("alias" stop))) (power . ())))
+                 '("stop" "alias")
+                 #:request (lambda (_ action target)
+                             '((service (version 0) (provides (moonraker alias))
+                                        (requires ()) (running 123) (status running))))))))
 
 (test-end "shepherd-helper")
 (exit (if (zero? (test-runner-fail-count runner)) 0 1))

@@ -14,8 +14,7 @@ Apply to Moonraker v0.11.0 with patch -p1.
          self.provider_type = config.get('provider', 'systemd_dbus')
          pclass = providers.get(self.provider_type)
          if pclass is None:
-@@ -485,6 +488,8 @@
- 
+@@ -486,5 +489,7 @@
      async def check_sudo_access(self, cmds: List[str] = []) -> bool:
          if not cmds:
 +            if self.provider_type == 'shepherd':

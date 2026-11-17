@@ -25,7 +25,8 @@ with tempfile.TemporaryDirectory(prefix="shepherd-distribution-") as directory:
     with tarfile.open(output / sdist) as archive:
         names = archive.getnames()
         for name in ("LICENSE", "scheme/moonraker/shepherd.scm",
-                     "patches/moonraker-0.11.0-shepherd.patch", "tests/helper.scm"):
+                     "patches/moonraker-0.11.0-shepherd.patch", "tests/helper.scm",
+                     "ci/check_version.py"):
             assert any(path.endswith("/" + name) for path in names), name
         extracted = temporary / "extracted"
         archive.extractall(extracted, filter="data")

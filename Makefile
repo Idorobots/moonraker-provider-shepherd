@@ -1,7 +1,7 @@
 PYTHON ?= python3
 GUILE ?= guile
 
-.PHONY: check check-python check-helper check-integration
+.PHONY: check check-python check-helper check-integration check-distribution
 check: check-python check-helper check-integration
 
 check-python:
@@ -12,3 +12,6 @@ check-helper:
 
 check-integration:
 	$(PYTHON) tests/integration.py
+
+check-distribution:
+	$(PYTHON) tests/check_distribution.py

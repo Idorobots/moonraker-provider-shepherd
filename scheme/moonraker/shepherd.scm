@@ -233,13 +233,23 @@
               ;; A failed constructor may return #f without a protocol error.
               (when (and (memq action '(start restart)) (not result))
                 (fail "shepherd" "Service failed to start"))
+              (when (memq action '(start restart))
+                ;; Shepherd's restart action can return #t even if a start
+                ;; constructor failed. Verify the resulting state as well.
+                (let ((current (find-service (inventory) name)))
+                  (unless (and current
+                               (or (equal? (assoc-ref (service-state current) "active_state") "active")
+                                   (field (service-properties current) 'one-shot? #f)))
+                    (fail "shepherd" "Service did not reach the running state"))))
               '(("accepted" . #f))))
           (unless target (fail "not-found" "Service is not registered with Shepherd"))
-         (when (root-service? target) (fail "denied" "The root service cannot be managed as an ordinary service"))
+          (when (root-service? target) (fail "denied" "The root service cannot be managed as an ordinary service"))
+          (when (and own (equal? own target) (not (eq? action 'restart)))
+            (fail "denied" "Moonraker only supports restart, including through service aliases"))
          (when (and (memq action '(stop restart)) own (not (equal? own target))
                     (depends-on? services own target '()))
            (fail "denied" "Moonraker depends on this service; remove its hard Shepherd requirement first"))
-         (if (equal? name (assq-ref policy 'moonraker-service))
+          (if (and own (equal? own target))
              (queue perform)
              (perform)))))
     (((or "poweroff" "halt" "reboot"))
