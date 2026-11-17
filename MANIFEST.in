@@ -1,0 +1,6 @@
+include LICENSE README.md Makefile
+recursive-include bin *
+recursive-include scheme *.scm
+recursive-include patches *.patch
+recursive-include examples *.scm
+recursive-include tests *.py *.scm

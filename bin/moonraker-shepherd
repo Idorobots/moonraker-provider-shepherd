@@ -1,0 +1,7 @@
+#!/usr/bin/env -S guile --no-auto-compile -e main -s
+!#
+;; SPDX-License-Identifier: MIT
+(use-modules ((moonraker shepherd) #:prefix helper:))
+
+(define (main args)
+  (exit (helper:main (cdr args))))

@@ -1,0 +1,34 @@
+SPDX-License-Identifier: MIT
+Register the external provider and recognize Shepherd as a host init.
+Apply to Moonraker v0.11.0 with patch -p1.
+
+--- a/moonraker/components/machine.py
++++ b/moonraker/components/machine.py
+@@ -114,6 +114,9 @@
+             "systemd_dbus": SystemdDbusProvider,
+             "supervisord_cli": SupervisordCliProvider
+         }
++        if config.get('provider', 'systemd_dbus') == 'shepherd':
++            from moonraker_provider_shepherd.provider import ShepherdProvider
++            providers['shepherd'] = ShepherdProvider
+         self.provider_type = config.get('provider', 'systemd_dbus')
+         pclass = providers.get(self.provider_type)
+         if pclass is None:
+@@ -485,6 +488,8 @@
+ 
+     async def check_sudo_access(self, cmds: List[str] = []) -> bool:
+         if not cmds:
++            if self.provider_type == 'shepherd':
++                return await self.sys_provider.check_sudo_access()
+             cmds = ["systemctl --version", "ls /root"]
+         shell_cmd: SCMDComp = self.server.lookup_component("shell_command")
+         for cmd in cmds:
+@@ -642,7 +647,7 @@
+                 try:
+                     data = sched_file.read_text().strip()
+                     proc_name = data.split('\n')[0].split()[0]
+-                    if proc_name not in ["init", "systemd"]:
++                    if proc_name not in ["init", "systemd", "shepherd"]:
+                         self.inside_container = True
+                         virt_type = "container"
+                         virt_id = "lxc"
