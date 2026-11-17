@@ -108,11 +108,13 @@ an `/etc` symlink to it. It must be a regular file owned by the helper's effecti
 user (root under sudo), protected from group/other writes and replacement through
 its ancestors. Root-owned sticky directories are permitted for temporary tests.
 
-`shepherd_timeout` bounds the client wait for an operation. A timeout does not
-cancel an operation already submitted to Shepherd; inspect service status before
-retrying. Status polling uses every second `proc_stats` callback, normally about
-every two seconds. An initial helper failure leaves the API running, reports a
-warning, and keeps polling so status can recover.
+`shepherd_timeout` bounds the client wait for an operation. Timeout/cancellation
+cleanup gets at most one additional second, or the configured timeout if shorter.
+Inherited output handles in helper children do not delay that cleanup. A timeout
+does not cancel an operation already submitted to Shepherd; inspect service
+status before retrying. Status polling uses every second `proc_stats` callback,
+normally about every two seconds. An initial helper failure leaves the API
+running, reports a warning, and keeps polling so status can recover.
 
 Disable Moonraker's install validators because Guix owns the configuration and
 service definitions. Keep the update manager disabled as well.
@@ -264,23 +266,6 @@ adapter exercises the command interface without granting privileges.
 `check_distribution.py` builds a Git-free source archive, then builds a wheel
 from that archive and verifies that the license, helper, policy example, and
 patch are included. This build-content check uses Python 3.12+.
-
-### Disposable Guix VM
-
-`tests/vm.scm` supplies real sudo-policy and power-operation coverage using dummy
-printer services. The host runner shares only a temporary witness directory
-with the VM, confirms that its boot ID changes after reboot, and waits for QEMU
-to exit after power-off:
-
-```sh
-vm=$(guix system vm tests/vm.scm)
-python3 tests/check_vm.py "$vm"
-```
-
-The VM self-tests automatically on boot and then reboots and powers itself off.
-The runner has a ten-minute timeout. This test is separate from `make check`.
-The configuration has been evaluated and dry-run checked. **Actual VM/Guix
-System execution is deferred to a Guix host; it is not part of container CI.**
 
 ## GitHub Actions
 

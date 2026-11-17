@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 from pathlib import Path
+import tempfile
 
 from moonraker.components.machine import BaseProvider
 
@@ -30,25 +31,35 @@ class ShepherdProvider(BaseProvider):
         args = [self.sudo, "-n", "--", self.helper, self.policy, action]
         if service is not None:
             args.append(service)
-        try:
-            process = await asyncio.create_subprocess_exec(
-                *args, stdin=asyncio.subprocess.DEVNULL,
-                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-        except OSError as exc:
-            raise self.server.error(f"Cannot launch Shepherd helper: {exc}", 503) from exc
-        try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(), self.timeout)
-        except (asyncio.TimeoutError, asyncio.CancelledError) as exc:
-            # A dispatched Shepherd action may still finish after this client exits.
-            if process.returncode is None:
+        # A child retaining an output pipe can keep communicate()/wait() blocked
+        # after sudo exits. Regular files let us reap the immediate process
+        # independently, including when a privileged helper outlives its client.
+        with tempfile.TemporaryFile() as output, tempfile.TemporaryFile() as errors:
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    *args, stdin=asyncio.subprocess.DEVNULL,
+                    stdout=output, stderr=errors)
+            except OSError as exc:
+                raise self.server.error(f"Cannot launch Shepherd helper: {exc}", 503) from exc
+            try:
+                await asyncio.wait_for(process.wait(), self.timeout)
+            except (asyncio.TimeoutError, asyncio.CancelledError) as exc:
+                # Shepherd may still finish an already-dispatched action.
+                if process.returncode is None:
+                    try:
+                        process.kill()
+                    except ProcessLookupError:
+                        pass
                 try:
-                    process.kill()
-                except ProcessLookupError:
-                    pass
-            await process.communicate()
-            if isinstance(exc, asyncio.CancelledError):
-                raise
-            raise self.server.error("Shepherd helper timed out; check service status", 503) from exc
+                    await asyncio.wait_for(process.wait(), min(self.timeout, 1.0))
+                except asyncio.TimeoutError:
+                    logging.warning("Shepherd helper did not exit during bounded cleanup")
+                if isinstance(exc, asyncio.CancelledError):
+                    raise
+                raise self.server.error("Shepherd helper timed out; check service status", 503) from exc
+            output.seek(0)
+            errors.seek(0)
+            stdout, stderr = output.read(), errors.read()
         try:
             response = json.loads(stdout)
             if not isinstance(response, dict) or response.get("protocol") != 1:
@@ -138,7 +149,7 @@ class ShepherdProvider(BaseProvider):
         if action not in ("start", "stop", "restart"):
             raise self.server.error(f"Unsupported Shepherd action: {action}", 400)
         # Fetch a current inventory; do not trust caller input or stale permissions.
-        await self._refresh(notify=False)
+        await self._refresh()
         info = self.details.get(service_name, {})
         if action not in info.get("actions", []):
             raise self.server.error(f"Shepherd action not permitted: {action} {service_name}", 403)
@@ -159,7 +170,7 @@ class ShepherdProvider(BaseProvider):
 
     async def extract_service_info(self, service_name, pid, properties=None, raw=False):
         try:
-            await self._refresh(notify=False)
+            await self._refresh()
         except Exception:
             logging.exception("Cannot identify Shepherd service for %s", service_name)
             return {}
