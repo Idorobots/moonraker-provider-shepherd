@@ -290,17 +290,17 @@ For a release, update `pyproject.toml` and
 `moonraker_provider_shepherd/__init__.py` together. Check them with:
 
 ```sh
-python3 ci/check_version.py --tag v0.1.0
+python3 ci/check_version.py --tag v0.1.1
 ```
 
 Commit and push the completed provider, then push the corresponding tag to
-trigger publication. The initial version is `0.1.0`, so its tag is `v0.1.0`.
+trigger publication. The current version is `0.1.1`, so its tag is `v0.1.1`.
 Update the downstream package version and source hash in spartan-guix when
 consuming a new release.
 
 ## Release contents
 
-Version `0.1.0` is the initial development version. All runtime sources and
+Version `0.1.1` is the current development version. All runtime sources and
 compatibility patches live in this repository, and builds do not consult Git
 metadata. A tagged GitHub source archive is sufficient for a pinned Guix source;
 an sdist or wheel can additionally be attached to a release.

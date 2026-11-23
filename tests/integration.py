@@ -55,16 +55,17 @@ class PrivateShepherdTests(unittest.TestCase):
             str(ROOT / "scheme"), str(modules), cls.env.get("GUILE_LOAD_PATH"))))
         cls.env["GUILE_AUTO_COMPILE"] = "0"
         cls.env["TEST_SLEEP"] = shutil.which("sleep")
+        shell = shutil.which("sh")
         cls.helper = cls.directory / "helper"
         cls.helper.write_text(
-            "#!/bin/sh\nexport GUILE_AUTO_COMPILE=0\nexport GUILE_LOAD_PATH="
+            f"#!{shell}\nexport GUILE_AUTO_COMPILE=0\nexport GUILE_LOAD_PATH="
             + shlex.quote(cls.env["GUILE_LOAD_PATH"]) + "\nexec "
             + shlex.quote(shutil.which("guile")) + " --no-auto-compile -e main -s "
             + shlex.quote(str(ROOT / "bin/moonraker-shepherd")) + ' "$@"\n')
         cls.helper.chmod(0o755)
         # Exercises the exact provider argv without requiring or granting sudo.
         cls.sudo = cls.directory / "sudo"
-        cls.sudo.write_text('#!/bin/sh\n[ "$1" = -n ] && [ "$2" = -- ] || exit 99\nshift 2\nexec "$@"\n')
+        cls.sudo.write_text(f'#!{shell}\n[ "$1" = -n ] && [ "$2" = -- ] || exit 99\nshift 2\nexec "$@"\n')
         cls.sudo.chmod(0o755)
         if MOONRAKER:
             with socket.socket() as sock:
